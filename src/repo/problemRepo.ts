@@ -39,26 +39,23 @@ export default class ProblemRepo {
       easyProblem,
       mediumProblem,
       hardProblem,
-    ].reduce(
-      (problems: DailyProblem, currProblem) => {
-        const problemKey = currProblem.PK.replace(Problem.prefixes.problem, '')
-        problems[problemKey] = {
+    ].reduce((problems, currProblem) => {
+      const problemKey = currProblem.PK.replace(Problem.prefixes.problem, '')
+      const formattedProblem = {
+        [problemKey]: {
           id: currProblem.ID,
           title: currProblem.TITLE,
           difficulty: currProblem.DIFFICULTY,
           topics: currProblem.TOPICS,
           url: currProblem.URL,
-        }
-
-        return problems
-      },
-      {
-        ANY: null,
-        EASY: null,
-        MEDIUM: null,
-        HARD: null,
+        },
       }
-    )
+
+      return {
+        ...problems,
+        ...formattedProblem,
+      }
+    }, {} as DailyProblem)
 
     return allProblems
   }

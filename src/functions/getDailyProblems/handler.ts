@@ -8,6 +8,7 @@ import ProblemRepo from '@repo/problemRepo'
 function convertToDbDate(date: string) {
   const validatedDate = DateTime.fromFormat(date, 'MM-dd-yyyy')
   if (!validatedDate.isValid) {
+    console.warn('Invalid date')
     return ''
   }
   return validatedDate.toFormat(ProblemRepo.DATE_FORMAT)
