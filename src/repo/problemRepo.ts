@@ -1,7 +1,8 @@
 import { type DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { DateTime } from 'luxon'
-import { Problem } from 'src/models/problem'
-import { dbClient } from 'src/services/db'
+
+import { Problem } from '@models/problem'
+import { dbClient } from '@services/db'
 
 type ProblemPayload = {
   category: Problem.Category
@@ -9,16 +10,25 @@ type ProblemPayload = {
   title: string
   url: string
   topics: string[]
-  difficulty: Problem.Difficulty
+  difficulty: string
 }
+
+type DailyProblem = Record<
+  Problem.Category,
+  {
+    id: string
+    title: string
+    difficulty: Problem.Difficulty
+    url: string
+    topics: string[]
+  }
+>
 
 export default class ProblemRepo {
   static TABLE_NAME = process.env.PROBLEM_TABLE_NAME
-  private static DATE_FORMAT = 'D'
+  static DATE_FORMAT = 'D'
 
-  public async getForToday() {
-    const today = DateTime.now().toFormat(ProblemRepo.DATE_FORMAT)
-
+  public async getDailyProblems(today: Problem.Date): Promise<DailyProblem> {
     const anyProblem = await this._get('ANY', today)
     const easyProblem = await this._get('EASY', today)
     const mediumProblem = await this._get('MEDIUM', today)
@@ -29,57 +39,57 @@ export default class ProblemRepo {
       easyProblem,
       mediumProblem,
       hardProblem,
-    ].reduce((problems, currProblem) => {
-      const problemKey = currProblem.PK.replace(Problem.prefixes.problem, '')
-      problems[problemKey] = {
-        id: currProblem.ID,
-        title: currProblem.TITLE,
-        difficulty: currProblem.DIFFICULTY,
-        topics: currProblem.TOPICS,
-        url: currProblem.URL,
-      }
+    ].reduce(
+      (problems: DailyProblem, currProblem) => {
+        const problemKey = currProblem.PK.replace(Problem.prefixes.problem, '')
+        problems[problemKey] = {
+          id: currProblem.ID,
+          title: currProblem.TITLE,
+          difficulty: currProblem.DIFFICULTY,
+          topics: currProblem.TOPICS,
+          url: currProblem.URL,
+        }
 
-      return problems
-    }, {})
+        return problems
+      },
+      {
+        ANY: null,
+        EASY: null,
+        MEDIUM: null,
+        HARD: null,
+      }
+    )
 
     return allProblems
   }
 
-  public async getPastWeekProblemIds(
-    category: Problem.Category,
-    date: Problem.Date
-  ): Promise<string[]> {
-    const { PK } = Problem.makeKeys({
-      category: category,
-      date,
-    })
-
-    const startDate = DateTime.fromFormat(date, ProblemRepo.DATE_FORMAT)
+  public async getPastWeekProblemIds(today: Problem.Date) {
+    const startDate = DateTime.fromFormat(today, ProblemRepo.DATE_FORMAT)
       .minus({ days: 7 })
       .toFormat(ProblemRepo.DATE_FORMAT)
 
-    try {
-      const response = await dbClient
-        .query({
-          TableName: ProblemRepo.TABLE_NAME,
-          KeyConditionExpression:
-            'PK = :pk and SK BETWEEN :start_date AND :end_date',
-          ExpressionAttributeValues: {
-            ':pk': PK,
-            ':start_date': startDate,
-            ':end_date': date,
-          },
-        })
-        .promise()
+    const anyProblemIds = await this._getProblemIds({
+      category: 'ANY',
+      date: { start: startDate, end: today },
+    })
+    const easyProblemIds = await this._getProblemIds({
+      category: 'EASY',
+      date: { start: startDate, end: today },
+    })
+    const mediumProblemIds = await this._getProblemIds({
+      category: 'MEDIUM',
+      date: { start: startDate, end: today },
+    })
+    const hardProblemIds = await this._getProblemIds({
+      category: 'HARD',
+      date: { start: startDate, end: today },
+    })
 
-      const problemIds = response.Items.map(
-        (item: Problem.ProblemItem) => item.ID
-      )
-
-      return problemIds
-    } catch (e) {
-      console.log(`Error retrieving past week problem IDs for date: ${date}`)
-      throw e
+    return {
+      ANY: anyProblemIds,
+      EASY: easyProblemIds,
+      MEDIUM: mediumProblemIds,
+      HARD: hardProblemIds,
     }
   }
 
@@ -103,7 +113,7 @@ export default class ProblemRepo {
             ID: problem.id,
             TITLE: problem.title,
             URL: problem.url,
-            DIFFICULTY: problem.difficulty,
+            DIFFICULTY: ProblemRepo._formatDifficulty(problem.difficulty),
             TOPICS: problem.topics,
           }
 
@@ -122,6 +132,48 @@ export default class ProblemRepo {
         .promise()
     } catch (e) {
       console.log(`Error saving problems for date: ${date}`)
+      throw e
+    }
+  }
+
+  private async _getProblemIds({
+    category,
+    date,
+  }: {
+    category: Problem.Category
+    date: {
+      start: Problem.Date
+      end: Problem.Date
+    }
+  }): Promise<string[]> {
+    const { PK } = Problem.makeKeys({
+      category: category,
+      date: date.end,
+    })
+
+    try {
+      const response = await dbClient
+        .query({
+          TableName: ProblemRepo.TABLE_NAME,
+          KeyConditionExpression:
+            'PK = :pk and SK BETWEEN :start_date AND :end_date',
+          ExpressionAttributeValues: {
+            ':pk': PK,
+            ':start_date': date.start,
+            ':end_date': date.end,
+          },
+        })
+        .promise()
+
+      const problemIds = response.Items.map(
+        (item: Problem.ProblemItem) => item.ID
+      )
+
+      return problemIds
+    } catch (e) {
+      console.log(
+        `Error retrieving past week problem IDs for date: ${date.end} and category: ${category}`
+      )
       throw e
     }
   }
@@ -148,6 +200,19 @@ export default class ProblemRepo {
     } catch (e) {
       console.log(`Error getting ${category} problem for date: ${date}`)
       throw e
+    }
+  }
+
+  private static _formatDifficulty(difficulty: string) {
+    switch (difficulty) {
+      case 'EASY':
+        return Problem.Difficulty.EASY
+      case 'MEDIUM':
+        return Problem.Difficulty.MEDIUM
+      case 'HARD':
+        return Problem.Difficulty.HARD
+      default:
+        throw Error('Unknown difficulty')
     }
   }
 }

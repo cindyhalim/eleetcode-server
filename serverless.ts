@@ -1,14 +1,16 @@
+import getDailyProblems from '@functions/getDailyProblems'
+import setProblemsForDay from '@functions/setProblemsForDay'
 import type { AWS } from '@serverless/typescript'
 
-import hello from '@functions/hello'
 import dynamoDb from 'src/resources/dynamoDb'
 
 const serverlessConfiguration: AWS = {
   service: 'eleetcode',
   frameworkVersion: '3',
-  plugins: ['serverless-esbuild'],
+  plugins: ['serverless-esbuild', 'serverless-iam-roles-per-function'],
   provider: {
     name: 'aws',
+    stage: 'api',
     runtime: 'nodejs14.x',
     apiGateway: {
       minimumCompressionSize: 1024,
@@ -20,7 +22,7 @@ const serverlessConfiguration: AWS = {
       PROBLEM_TABLE_NAME: '${self:service}-problem',
     },
   },
-  functions: { hello },
+  functions: { setProblemsForDay, getDailyProblems },
   resources: {
     Resources: {
       ...dynamoDb,

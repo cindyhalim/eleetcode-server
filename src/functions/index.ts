@@ -1,1 +1,2 @@
-export { default as hello } from './hello';
+export { default as setProblemsForDay } from './setProblemsForDay'
+export { default as getDailyProblems } from './getDailyProblems'

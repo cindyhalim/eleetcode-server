@@ -1,4 +1,4 @@
-import { DocumentClient } from 'aws-sdk/clients/dynamodb'
+import { type DocumentClient } from 'aws-sdk/clients/dynamodb'
 
 export namespace Problem {
   export const prefixes = {
