@@ -11,9 +11,7 @@ const setProblemsForDay = async () => {
   const leetcode = new LeetcodeService()
   const problemRepo = new ProblemRepo()
 
-  const today = DateTime.now()
-    .setZone('Pacific/Kiritimati')
-    .toFormat(ProblemRepo.DATE_FORMAT)
+  const today = DateTime.now().toFormat(ProblemRepo.DATE_FORMAT)
 
   console.log(`fetching problems for today: ${today}`)
 
