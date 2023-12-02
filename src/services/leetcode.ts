@@ -8,8 +8,11 @@ type RawQuestionResponse = {
     questionFrontendId: string
     difficulty: string
     topicTags: { name: string }[]
+    isPaidOnly: boolean
   }
 }
+
+const MAX_RETRY = 20
 
 export class LeetcodeService {
   private static SERVICE_URL = 'https://leetcode.com/graphql/'
@@ -22,6 +25,7 @@ export class LeetcodeService {
           title
           questionFrontendId
           difficulty
+          isPaidOnly
           topicTags {
               name
           }
@@ -39,15 +43,21 @@ export class LeetcodeService {
     }
 
     try {
-      const response = await fetch(LeetcodeService.SERVICE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }).then((res) => res.json() as any)
-
-      const rawQuestion: RawQuestionResponse = response.data
+      let count = 0
+      let isPaidOnly = true
+      let rawQuestion: RawQuestionResponse = null
+      while (isPaidOnly && count < MAX_RETRY) {
+        const response = await fetch(LeetcodeService.SERVICE_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }).then((res) => res.json() as any)
+        count++
+        rawQuestion = response.data
+        isPaidOnly = rawQuestion.randomQuestion.isPaidOnly
+      }
 
       return {
         id: rawQuestion.randomQuestion.questionFrontendId,

@@ -21,12 +21,14 @@ const setProblemsForDay = async () => {
     async (category: Problem.Category) => {
       let counter = 0
       while (counter <= RETRY_LIMIT) {
-        const blackListProblemIdsForCategory = blackListProblemIds[category]
+        const blackListProblemIdsForCategory = new Set(
+          ...blackListProblemIds[category]
+        )
 
         const question = await leetcode.getRandomQuestion(category)
         counter += 1
 
-        if (!blackListProblemIdsForCategory.includes(question.id)) {
+        if (!blackListProblemIdsForCategory.has(question.id)) {
           return { ...question, category }
         }
       }
