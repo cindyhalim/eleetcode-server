@@ -11,10 +11,7 @@ export default {
   ],
   events: [
     {
-      schedule: {
-        rate: ['cron(0 0 1 * ? *)'],
-        enabled: true,
-      },
+      schedule: 'cron(0 0 * * ? *)', // everyday at midnight
     },
   ],
 }

@@ -16,6 +16,7 @@ function convertToDbDate(date: string) {
 const getDailyQuestions = async (event: APIGatewayProxyEvent) => {
   const problemRepo = new ProblemRepo()
   const { date } = event.pathParameters // MM-DD-YYYY
+  console.log(`Retrieving daily questions for date: ${date}`)
 
   const formattedDate = convertToDbDate(date)
 
